@@ -12,9 +12,9 @@
 set -euo pipefail
 
 # Check for GPU flag
-GPU_FLAG=""
+USE_GPU=0
 if [[ "${1:-}" == "--gpu" ]]; then
-    GPU_FLAG="--gpu"
+    USE_GPU=1
     shift
 fi
 
@@ -22,11 +22,6 @@ fi
 LIST_FILE="${1:-transcode-list.txt}"
 PARALLEL_JOBS="${2:-2}"
 LOG_FILE="transcode.log"
-
-# Force 1 job when using GPU to avoid GPU contention
-if [[ -n "$GPU_FLAG" ]]; then
-    PARALLEL_JOBS=1
-fi
 
 # Validate inputs
 if [[ ! -f "$LIST_FILE" ]]; then
@@ -72,8 +67,8 @@ transcode_file() {
 
     echo "[START] $(basename "$dest")"
 
-    if [[ "$GPU_MODE" == "1" ]]; then
-        jellyfin-optimize.sh --gpu "$source" "$dest" >> "$LOG_FILE" 2>&1
+    if [[ $USE_GPU -eq 1 ]]; then
+        jellyfin-optimize.sh \-\-gpu "$source" "$dest" >> "$LOG_FILE" 2>&1
     else
         jellyfin-optimize.sh "$source" "$dest" >> "$LOG_FILE" 2>&1
     fi
@@ -91,8 +86,7 @@ transcode_file() {
 
 export -f transcode_file
 export LOG_FILE
-# Export GPU_FLAG as a simple flag value, not the string "--gpu"
-export GPU_MODE="${GPU_FLAG:+1}"
+export USE_GPU
 
 # Start transcoding
 echo "========================================="
@@ -100,8 +94,8 @@ echo "Jellyfin Batch Transcoder"
 echo "========================================="
 echo "List file: $LIST_FILE"
 echo "Parallel jobs: $PARALLEL_JOBS"
-if [[ -n "$GPU_FLAG" ]]; then
-    echo "GPU mode: enabled (parallel jobs forced to 1)"
+if [[ $USE_GPU -eq 1 ]]; then
+    echo "GPU mode: enabled"
 else
     echo "GPU mode: disabled"
 fi
